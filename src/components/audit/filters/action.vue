@@ -1,0 +1,92 @@
+<!--
+Copyright 2020 ODK Central Developers
+See the NOTICE file at the top-level directory of this distribution and at
+https://github.com/getodk/central-frontend/blob/master/NOTICE.
+
+This file is part of ODK Central. It is subject to the license terms in
+the LICENSE file found in the top-level directory of this distribution and at
+https://www.apache.org/licenses/LICENSE-2.0. No part of ODK Central,
+including this file, may be copied, modified, propagated, or distributed
+except according to the terms contained in the LICENSE file.
+-->
+<template>
+  <label id="audit-filters-action" class="form-group">
+    <select class="form-control" :value="value"
+      @change="$emit('input', $event.target.value)">
+      <option v-for="option of options" :key="option.value"
+        :class="option.htmlClass" :value="option.value">
+        {{ option.text }}
+      </option>
+    </select>
+    <span class="form-label">{{ $t('field.type') }}</span>
+  </label>
+</template>
+
+<script>
+import audit from '../../../mixins/audit';
+
+export default {
+  name: 'AuditFiltersAction',
+  mixins: [audit()],
+  props: {
+    value: {
+      type: String,
+      required: true
+    }
+  },
+  computed: {
+    options() {
+      return [
+        this.categoryOption('nonverbose'),
+        this.categoryOption('user'),
+        this.actionOption('user.create'),
+        this.actionOption('user.update'),
+        this.actionOption('assignment.create'),
+        this.actionOption('assignment.delete'),
+        this.actionOption('user.delete'),
+        this.categoryOption('project'),
+        this.actionOption('project.create'),
+        this.actionOption('project.update'),
+        this.actionOption('project.delete'),
+        this.categoryOption('form'),
+        this.actionOption('form.create'),
+        this.actionOption('form.update'),
+        this.actionOption('form.update.draft.set'),
+        this.actionOption('form.update.publish'),
+        this.actionOption('form.update.draft.delete'),
+        this.actionOption('form.attachment.update'),
+        this.actionOption('form.delete'),
+        this.categoryOption('field_key'),
+        this.actionOption('field_key.create'),
+        this.categoryOption('public_link'),
+        this.actionOption('public_link.create'),
+        this.categoryOption('session'),
+        this.actionOption('session.end')
+      ];
+    }
+  },
+  methods: {
+    categoryOption(category) {
+      return {
+        text: this.$t(`audit.category.${category}`),
+        value: category,
+        htmlClass: 'audit-filters-action-category'
+      };
+    },
+    actionOption(action) {
+      return {
+        // Adding non-breaking spaces: see #323 on GitHub.
+        text: `\u00a0\u00a0\u00a0${this.actionMessage(action)}`,
+        value: action
+      };
+    }
+  }
+};
+</script>
+
+<style lang="scss">
+.audit-filters-action-category {
+  // Not all browsers support styling an <option> element this way.
+  font-weight: bold;
+}
+</style>

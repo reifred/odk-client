@@ -1,0 +1,622 @@
+/*
+Copyright 2019 ODK Central Developers
+See the NOTICE file at the top-level directory of this distribution and at
+https://github.com/getodk/central-frontend/blob/master/NOTICE.
+
+This file is part of ODK Central. It is subject to the license terms in
+the LICENSE file found in the top-level directory of this distribution and at
+https://www.apache.org/licenses/LICENSE-2.0. No part of ODK Central,
+including this file, may be copied, modified, propagated, or distributed
+except according to the terms contained in the LICENSE file.
+*/
+
+@import './mixins';
+
+html {
+  background-color: $color-accent-secondary;
+  min-height: 100%;
+}
+
+body {
+  background-color: $color-page-background;
+  box-shadow: 0 -2px 0 #777 inset;
+  color: $color-text;
+  min-height: 100vh;
+}
+
+h1, .h1 {
+  font-size: 30px;
+  font-weight: bold;
+  letter-spacing: -0.02em;
+  margin-bottom: 3px;
+}
+
+p { max-width: $max-width-p; }
+
+pre {
+  background-color: $color-subpanel-background;
+  border-color: $color-subpanel-border;
+
+  code { white-space: pre; }
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// ICONS
+
+.btn, a {
+  .caret { margin-left: 6px; }
+}
+
+[class^="icon-"], [class*=" icon-"] {
+  vertical-align: -1px;
+
+  .btn > &:first-child, a > &:first-child {
+    margin-right: $margin-right-icon;
+    + .caret { margin-left: 0; }
+  }
+
+  a > &:first-child {
+    // Using inline-block so that the icon is not underlined even when the link
+    // has `text-decoration: underline`.
+    display: inline-block;
+  }
+}
+
+/* Bootstrap has an .icon-bar class that is unrelated to IcoMoon, but our
+IcoMoon styles end up applying to it, because our IcoMoon selectors select on
+the "icon-" class name prefix. To resolve that, we copy the .icon-bar styles for
+.navbar-icon-bar and use .navbar-icon-bar wherever we would use .icon-bar. This
+should not be an issue for Bootstrap 4, which does not seem to have an .icon-bar
+class. */
+
+.navbar-toggle .navbar-icon-bar {
+  display: block;
+  width: 22px;
+  height: 2px;
+  border-radius: 1px;
+}
+
+.navbar-toggle .navbar-icon-bar + .navbar-icon-bar {
+  margin-top: 4px;
+}
+
+.navbar-default .navbar-toggle .navbar-icon-bar {
+  background-color: #888;
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// LINKS AND BUTTONS
+
+.btn {
+  border: none;
+  border-radius: 2px;
+  font-size: $font-size-button;
+  padding: 6px 10px 5px;
+
+  // I think we set these for the Spinner component.
+  overflow: hidden;
+  position: relative;
+
+  &:focus { outline: none; }
+}
+
+.btn-group.open .dropdown-toggle { box-shadow: none; }
+.btn, .btn-group.open .dropdown-toggle {
+  &:focus { box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.18); }
+}
+
+.btn-primary {
+  background-color: $color-action-background;
+
+  &:hover, &:focus {
+    background-color: $color-action-background-hover;
+  }
+
+  &[disabled] {
+    &, &:hover, &:focus {
+      background-color: $color-action-background-disabled;
+    }
+  }
+}
+
+.btn-secondary {
+  @extend .btn-primary;
+
+  &, &:hover, &:focus {
+    color: #fff;
+  }
+}
+
+.btn-danger {
+  background-color: $color-danger;
+
+  &:hover, &:focus {
+    background-color: $color-danger-dark;
+
+    &[disabled] {
+      background-color: $color-danger;
+    }
+  }
+}
+
+a, .btn-link {
+  &, &:hover {
+    color: $color-action-foreground;
+  }
+
+  &:hover {
+    text-decoration: none;
+  }
+
+  &:focus {
+    background-color: transparentize(#000, 0.94);
+    color: #23527c;
+    text-decoration: underline;
+  }
+}
+
+a {
+  &:focus { outline: none; }
+
+  &, &:visited {
+    @media print {
+      text-decoration: none;
+    }
+  }
+
+  &.disabled {
+    color: #888;
+    cursor: not-allowed;
+    opacity: 0.65;
+    // Not specifying pointer-events so that the cursor and any title attribute
+    // is shown.
+
+    &.btn { color: #fff; }
+  }
+
+  > .icon-angle-right:last-child { color: $color-accent-primary; }
+}
+
+.btn-link {
+  border-radius: 0;
+
+  &:focus {
+    background-clip: content-box;
+    box-shadow: none;
+  }
+
+  &:active:focus {
+    outline: none;
+  }
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// DROPDOWNS
+
+.dropdown-menu {
+  font-size: $font-size-dropdown-menu;
+  min-width: $min-width-dropdown-menu;
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// FORMS
+
+$form-group-padding-bottom: 15px;
+.form-group {
+  display: block;
+  font-weight: normal;
+  padding-bottom: $form-group-padding-bottom;
+  position: relative;
+
+  $form-control-z-index: 1;
+  .form-control {
+    background: $color-input-background;
+    border: none;
+    border-bottom: 1px solid $color-input-inactive;
+    border-radius: 0;
+    box-shadow: none;
+    color: $color-input;
+    position: relative;
+    z-index: $form-control-z-index;
+
+    &:focus {
+      border-bottom-color: $color-action-foreground;
+      box-shadow: none;
+    }
+
+    &::placeholder { color: $color-text; }
+
+    &[disabled], &[readonly] {
+      &, &::placeholder { color: $color-input-inactive; }
+    }
+  }
+
+  .form-label {
+    color: $color-input-inactive;
+    display: block;
+    font-size: 11px;
+    height: 0;
+    padding-left: 12px;
+    transform: translateY(2px);
+    transition: 0.15s transform, 0.15s color;
+  }
+  .form-control {
+    &:focus ~ .form-label { color: $color-action-foreground; }
+    &:placeholder-shown ~ .form-label { transform: translateY(-15px); }
+  }
+
+  .close {
+    float: none;
+    opacity: 0.5;
+    position: absolute;
+    right: 3px;
+    top: 5px;
+    z-index: $form-control-z-index + 1;
+
+    &:hover, &:focus { opacity: 0.2; }
+  }
+}
+
+.form-inline {
+  margin-bottom: 15px;
+  padding-bottom: $form-group-padding-bottom;
+
+  .form-group {
+    padding-bottom: 0;
+
+    + .form-group { margin-left: 10px; }
+  }
+
+  .icon-filter {
+    color: #999;
+    margin-right: $margin-right-icon;
+  }
+}
+
+.radio label {
+  cursor: default;
+}
+
+.checkbox label + .help-block {
+  margin-left: 20px;
+  margin-top: 0;
+}
+
+.has-error {
+  .radio, .checkbox, &.radio label, &.checkbox label { color: $color-danger; }
+
+  .form-control {
+    border-color: $color-danger;
+
+    &:focus {
+      border-color: $color-danger-dark;
+      box-shadow: none;
+    }
+  }
+
+  .form-label { color: $color-danger; }
+  .form-control:focus ~ .form-label { color: $color-danger-dark; }
+}
+
+// In Safari, the effect of this class is not visible on input and select
+// elements.
+.uncommitted-change {
+  // Adding `.form-group &` for specificity reasons, in order to override the
+  // styles on .form-group .form-control.
+  &, .form-group & {
+    &, &:focus {
+      box-shadow: 0 0 0 3px #ffef67;
+    }
+  }
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// PASSWORD FIELD
+
+.Password {
+  float: right;
+  width: 50%;
+}
+
+.Password__strength-meter {
+  position: relative;
+  height: 2px;
+  background: #DDD;
+  border-radius: 3px;
+  margin-top: 10px;
+
+}
+.Password__strength-meter:before, .Password__strength-meter:after {
+  content: '';
+  height: inherit;
+  background: transparent;
+  display: block;
+  border-color: #FFF;
+  border-style: solid;
+  border-width: 0 5px 0 5px;
+  position: absolute;
+  width: 20%;
+  z-index: 10;
+}
+.Password__strength-meter:before {
+  left: 20%;
+}
+.Password__strength-meter:after {
+  right: 20%;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// TABLES
+
+.table {
+  margin-bottom: $margin-bottom-table;
+
+  > thead {
+    background-color: $color-table-heading-background;
+
+    > tr > th {
+      border-bottom: $border-bottom-table-heading;
+      font-size: $font-size-table-heading;
+      padding: $padding-table-heading;
+    }
+  }
+
+  > tbody {
+    > tr > td {
+      border-top: $border-top-table-data;
+      padding: $padding-top-table-data $padding-right-table-data
+               $padding-bottom-table-data $padding-left-table-data;
+    }
+  }
+
+  > thead > tr.success > th,
+  > thead > tr > th.success,
+  > tbody > tr.success > td,
+  > tbody > tr > td.success {
+    background-color: $color-success-light;
+  }
+
+  > thead > tr.info > th,
+  > thead > tr > th.info,
+  > tbody > tr.info > td,
+  > tbody > tr > td.info {
+    background-color: $color-info-light;
+  }
+}
+
+.table-frozen {
+  float: left;
+  width: auto;
+}
+
+.table-container {
+  // Placing the margin here rather than on the table so that the horizontal
+  // scrollbar appears immediately below the table, above the margin.
+  margin-bottom: $margin-bottom-table;
+  overflow-x: auto;
+
+  .table {
+    margin-bottom: 0;
+  }
+}
+
+.table-actions {
+  margin-bottom: 20px;
+}
+
+.empty-table-message {
+  color: #555;
+  font-size: 15px;
+  // Unless the message is quite long, we want it to fit on one line.
+  max-width: 650px;
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// LABELS
+
+.label-primary {
+  background-color: $color-action-background;
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// PAGE STRUCTURE
+
+/*
+Most pages render a PageHead and a PageBody. The PageBody will often contain one
+or more PageSection components. Some pages use .panel-simple, but this is an
+older pattern: try to use PageSection instead.
+
+The PageBody component may show a heading at the top. Right now we implement
+this using the page-body-heading class, but we may create a component if it
+becomes more complicated.
+*/
+
+// .heading-with-button is deprecated: use .page-body-heading instead.
+.page-body-heading, .heading-with-button {
+  margin-bottom: 25px;
+
+  > .btn {
+    float: right;
+    margin-left: 20px;
+  }
+
+  ul { @include text-list; }
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// PANELS
+
+.panel {
+  border: none;
+  border-radius: 0;
+
+  .panel-heading {
+    border-radius: 0;
+
+    .panel-title {
+      font-weight: bold;
+      letter-spacing: normal;
+    }
+  }
+
+  .panel-footer {
+    background: $color-subpanel-background;
+    border-top-color: $color-subpanel-border;
+    margin: -15px;
+    margin-bottom: -25px;
+    margin-top: 20px;
+  }
+}
+
+.panel-default {
+  .panel-heading {
+    background-color: $color-accent-primary;
+    color: #fff;
+
+    .panel-title {
+      font-size: 18px;
+      letter-spacing: -0.02em;
+    }
+  }
+
+  .panel-body {
+    .form-group .form-control {
+      background-color: $color-panel-input-background;
+    }
+  }
+}
+
+.panel-main {
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.25), 0 35px 115px rgba(0, 0, 0, 0.28);
+  margin-top: 70px;
+
+  .panel-body {
+    padding-bottom: 25px;
+    padding-top: 25px;
+  }
+}
+
+// Intended to be styled similarly to .table.
+.panel-simple {
+  background-color: transparent;
+  box-shadow: none;
+
+  .panel-heading {
+    background-color: $color-table-heading-background;
+    border-bottom: $border-bottom-table-heading;
+    padding: $padding-table-heading;
+
+    .panel-title {
+      font-size: $font-size-table-heading;
+      line-height: inherit;
+    }
+  }
+
+  .panel-body {
+    padding: 14px $padding-right-table-data
+             $padding-bottom-table-data $padding-left-table-data;
+
+    hr {
+      // An <hr> styles the break between two sections of a
+      // .panel-simple .panel-body similarly to the space between two rows of a
+      // .table. We want the <hr> to stretch across the entire width of the
+      // .panel-body, hence the negative left and right margins.
+      margin: $padding-bottom-table-data (-$padding-right-table-data)
+              $padding-top-table-data (-$padding-left-table-data);
+      border-top: $border-top-table-data;
+    }
+  }
+}
+
+.panel-simple-danger {
+  @extend .panel-simple;
+
+  .panel-heading {
+    border: none;
+  }
+
+  .panel-body {
+    border: 1px solid $color-danger;
+  }
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// NAVS
+
+.nav-tabs {
+  border-bottom: none;
+
+  > li {
+    margin-bottom: -1px;
+    margin-right: 10px;
+
+    > a, &.active > a {
+      &, &:hover, &:focus {
+        border: none;
+        border-bottom: 2px solid transparent;
+        border-radius: 0;
+        color: $color-text;
+        padding: 7px 8px 6px;
+      }
+
+      &:focus {
+        outline: none;
+      }
+    }
+
+    > a {
+      &, &:hover, &:focus {
+        background-color: transparent;
+      }
+
+      &:hover {
+        border-bottom-color: $color-accent-primary;
+      }
+
+      &:focus {
+        border-bottom-color: $color-action-foreground;
+      }
+    }
+
+    &.active > a {
+      &, &:hover, &:focus {
+        background-color: $color-subpanel-background;
+        border-bottom-color: $color-accent-primary;
+      }
+    }
+
+    &.disabled {
+      &:hover {
+        cursor: not-allowed;
+      }
+
+      > a {
+        pointer-events: none;
+
+        &, &:focus {
+          color: #999;
+        }
+
+        &:focus {
+          border-bottom-color: transparent;
+        }
+      }
+    }
+  }
+}

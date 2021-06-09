@@ -1,0 +1,316 @@
+<!--
+Copyright 2019 ODK Central Developers
+See the NOTICE file at the top-level directory of this distribution and at
+https://github.com/getodk/central-frontend/blob/master/NOTICE.
+
+This file is part of ODK Central. It is subject to the license terms in
+the LICENSE file found in the top-level directory of this distribution and at
+https://www.apache.org/licenses/LICENSE-2.0. No part of ODK Central,
+including this file, may be copied, modified, propagated, or distributed
+except according to the terms contained in the LICENSE file.
+-->
+<template>
+  <div>
+    <div class="heading-with-button">
+      <button id="project-form-access-save-button" type="button"
+        class="btn btn-primary"
+        :class="{ 'uncommitted-change': changeCount !== 0 }"
+        :disabled="saveDisabled" @click="save">
+        <span class="icon-floppy-o"></span>{{ $t('action.save') }}
+        <spinner :state="awaitingResponse"/>
+      </button>
+      <p>
+        {{ $t('heading[0]') }}
+        <i18n :tag="false" path="moreInfo.clickHere.full">
+          <template #clickHere>
+            <doc-link to="central-projects/#managing-form-access">{{ $t('moreInfo.clickHere.clickHere') }}</doc-link>
+          </template>
+        </i18n>
+      </p>
+    </div>
+
+    <loading :state="initiallyLoading"/>
+    <template v-if="dataExists">
+      <project-form-access-table :changes-by-form="changesByForm"
+        @update:state="updateState"
+        @update:field-key-access="updateFieldKeyAccess"
+        @show-states="showModal('statesModal')"/>
+      <p v-if="forms.length === 0" class="empty-table-message">
+        {{ $t('emptyTable') }}
+      </p>
+    </template>
+
+    <project-form-access-states v-bind="statesModal"
+      @hide="hideModal('statesModal')"/>
+  </div>
+</template>
+
+<script>
+import { mapGetters } from 'vuex';
+
+import DocLink from '../doc-link.vue';
+import Loading from '../loading.vue';
+import ProjectFormAccessStates from './form-access/states.vue';
+import ProjectFormAccessTable from './form-access/table.vue';
+import Spinner from '../spinner.vue';
+import modal from '../../mixins/modal';
+import request from '../../mixins/request';
+import { apiPaths } from '../../util/request';
+import { noop } from '../../util/util';
+import { requestData } from '../../store/modules/request';
+
+const REQUEST_KEYS = ['roles', 'project', 'forms', 'fieldKeys', 'formSummaryAssignments'];
+
+export default {
+  name: 'ProjectFormAccess',
+  components: {
+    DocLink,
+    Loading,
+    ProjectFormAccessStates,
+    ProjectFormAccessTable,
+    Spinner
+  },
+  mixins: [modal(), request()],
+  props: {
+    projectId: {
+      type: String,
+      required: true
+    }
+  },
+  data() {
+    return {
+      awaitingResponse: false,
+      changesByForm: null,
+      changeCount: 0,
+      statesModal: {
+        state: false
+      }
+    };
+  },
+  computed: {
+    ...requestData(REQUEST_KEYS),
+    ...mapGetters(['rolesBySystem', 'fieldKeysWithToken']),
+    initiallyLoading() {
+      return this.$store.getters.initiallyLoading(REQUEST_KEYS);
+    },
+    dataExists() {
+      return this.$store.getters.dataExists(REQUEST_KEYS);
+    },
+    saveDisabled() {
+      return !this.dataExists || this.changeCount === 0 ||
+        this.awaitingResponse;
+    },
+    // Returns an object that maps each form's xmlFormId to a "field key access
+    // object" for the form. The object indicates whether each app user has an
+    // assignment to the form. It has a property for every app user with a
+    // token, even those without an assignment to the form.
+    fieldKeyAccessByForm() {
+      const byFieldKey = {};
+      for (const fieldKey of this.fieldKeysWithToken)
+        byFieldKey[fieldKey.id] = false;
+
+      const byForm = Object.create(null);
+      for (const form of this.forms)
+        byForm[form.xmlFormId] = { ...byFieldKey };
+
+      for (const assignment of this.formSummaryAssignments) {
+        const forForm = byForm[assignment.xmlFormId];
+        // Skip any assignment whose form is not in this.forms or whose app user
+        // is not in this.fieldKeysWithToken.
+        if (forForm != null && forForm[assignment.actorId] != null)
+          forForm[assignment.actorId] = true;
+      }
+
+      return byForm;
+    },
+    // This may need to change whenever we add a property to the Project or Form
+    // class in Backend.
+    projectToSave() {
+      return {
+        name: this.project.name,
+        archived: this.project.archived,
+        // If there is a form on Backend that is not in this.forms, then at
+        // least right now, Backend will return a Problem response. In the
+        // future, Backend may delete the form.
+        forms: this.forms.map(form => {
+          const changes = this.changesByForm[form.xmlFormId];
+
+          const assignments = [];
+          const roleId = this.rolesBySystem['app-user'].id;
+          for (const fieldKey of this.fieldKeysWithToken) {
+            if (changes.current.fieldKeyAccess[fieldKey.id])
+              assignments.push({ actorId: fieldKey.id, roleId });
+          }
+
+          return {
+            xmlFormId: form.xmlFormId,
+            name: form.name,
+            state: changes.current.state,
+            // If there is an assignment on Backend whose app user is not in
+            // this.fieldKeysWithToken, then Backend will delete the assignment.
+            assignments
+          };
+        })
+      };
+    }
+  },
+  watch: {
+    dataExists: {
+      handler(dataExists) {
+        if (dataExists) this.initChangesByForm();
+      },
+      immediate: true
+    }
+  },
+  created() {
+    this.fetchData(false);
+  },
+  methods: {
+    fetchData(resend) {
+      this.$emit('fetch-forms', resend);
+      this.$emit('fetch-field-keys', resend);
+      this.$store.dispatch('get', [
+        {
+          key: 'roles',
+          url: '/roles',
+          resend: false
+        },
+        {
+          key: 'formSummaryAssignments',
+          url: apiPaths.formSummaryAssignments(this.projectId, 'app-user'),
+          resend
+        }
+      ]).catch(noop);
+    },
+    // initChangesByForm() initializes this.changesByForm. Contrary to what its
+    // name may suggest, this.changesByForm does not store only changes. Rather,
+    // it stores two snapshots for each form: one from before the user made any
+    // changes, and one that includes any changes. Each snapshot includes the
+    // form's state, as well as app user access to the form.
+    initChangesByForm() {
+      // Using Object.create(null) in case there is a form whose xmlFormId is
+      // '__proto__'.
+      this.changesByForm = Object.create(null);
+      for (const form of this.forms) {
+        const fieldKeyAccess = this.fieldKeyAccessByForm[form.xmlFormId];
+        this.$set(this.changesByForm, form.xmlFormId, {
+          previous: {
+            state: form.state,
+            fieldKeyAccess
+          },
+          current: {
+            state: form.state,
+            fieldKeyAccess: { ...fieldKeyAccess }
+          }
+        });
+      }
+    },
+    setUnsavedChanges() {
+      if (this.changeCount === 0) {
+        if (this.$store.state.router.unsavedChanges)
+          this.$store.commit('setUnsavedChanges', false);
+      } else if (!this.$store.state.router.unsavedChanges) {
+        this.$store.commit('setUnsavedChanges', true);
+      }
+    },
+    updateState(form, state) {
+      const changes = this.changesByForm[form.xmlFormId];
+      const changedBeforeUpdate = changes.current.state !== changes.previous.state;
+      changes.current.state = state;
+      const changedAfterUpdate = changes.current.state !== changes.previous.state;
+      if (changedAfterUpdate !== changedBeforeUpdate) {
+        this.changeCount += changedAfterUpdate ? 1 : -1;
+        this.setUnsavedChanges();
+      }
+    },
+    updateFieldKeyAccess(form, fieldKey, accessible) {
+      const changes = this.changesByForm[form.xmlFormId];
+      const changedBeforeUpdate = changes.current.fieldKeyAccess[fieldKey.id] !==
+        changes.previous.fieldKeyAccess[fieldKey.id];
+      changes.current.fieldKeyAccess[fieldKey.id] = accessible;
+      const changedAfterUpdate = accessible !==
+        changes.previous.fieldKeyAccess[fieldKey.id];
+      if (changedAfterUpdate !== changedBeforeUpdate) {
+        this.changeCount += changedAfterUpdate ? 1 : -1;
+        this.setUnsavedChanges();
+      }
+    },
+    save() {
+      this.put(apiPaths.project(this.projectId), this.projectToSave)
+        .then(() => {
+          this.fetchData(true);
+          this.$alert().success(this.$t('alert.success'));
+          this.$store.commit('setUnsavedChanges', false);
+          this.changesByForm = null;
+          this.changeCount = 0;
+        })
+        .catch(noop);
+    }
+  }
+};
+</script>
+
+<i18n lang="json5">
+{
+  "en": {
+    "heading": [
+      "App Users can only see and fill the Forms that they are explicity given access to in the table below. Project Managers and Data Collectors can use a web browser to fill out any Form in the Project that is in the Open state."
+    ],
+    "emptyTable": "There are no Forms to show.",
+    "alert": {
+      "success": "Your changes have been saved!"
+    }
+  }
+}
+</i18n>
+
+<!-- Autogenerated by destructure.js -->
+<i18n>
+{
+  "cs": {
+    "heading": [
+      "Uživatelé aplikace mohou vidět a vyplnit pouze formuláře, k nimž mají výslovný přístup v níže uvedené tabulce. Projektoví manažeři a sběratelé dat mohou pomocí webového prohlížeče vyplnit jakýkoli formulář v projektu, který je ve stavu Otevřený."
+    ],
+    "emptyTable": "Nejsou k dispozici žádné formuláře.",
+    "alert": {
+      "success": "Vaše změny byly uloženy!"
+    }
+  },
+  "de": {
+    "heading": [
+      "Benutzer der App können nur diejenigen Formulare ansehen oder ausfüllen, für die sie expliziten Zugriff haben. Projekt-Manager und Datensammler können einen Browser benutzen, um beliebige Formulare im Projekt, die sich noch im offenen Zustand befinden, auszufüllen."
+    ],
+    "emptyTable": "Es gibt keine Formulare zum Anzeigen.",
+    "alert": {
+      "success": "Ihre Änderungen wurden gespeichert."
+    }
+  },
+  "es": {
+    "heading": [
+      "Los usuarios móviles solo pueden ver y llenar los formularios a los que explícitamente se les ha dado acceso en la tabla siguiente. Los administradores de proyecto y recolectores de datos puede utilizar un navegador web para llenar cualquier formulario del proyecto que está en estado abierto."
+    ],
+    "emptyTable": "No existen formularios para mostrar.",
+    "alert": {
+      "success": "¡Sus modificaciones han sido guardadas!"
+    }
+  },
+  "fr": {
+    "heading": [
+      "Les utilisateurs mobiles peuvent seulement voir et remplir les formulaires auxquels ils ont été donné accès dans le tableau ci-dessous. Les gestionnaires de projet et collecteurs de données peuvent utiliser leurs navigateurs pour remplir tous les formulaires de ce projet dans l'état \"ouvert\"."
+    ],
+    "emptyTable": "Il n'y a pas de formulaire à afficher.",
+    "alert": {
+      "success": "Vos modifications ont été enregistrées."
+    }
+  },
+  "id": {
+    "heading": [
+      "Pengguna Aplikasi hanya bisa melihat dan mengisi formulir yang aksesnya telah diberikan kepada mereka pada tabel di bawah ini. Manajer Proyek dan pengumpul data dapat menggunakan web browser untuk mengisi formulir apapun dalam Proyek yang statusnya adalah Terbuka."
+    ],
+    "emptyTable": "Tidak ada formulir untuk ditampilkan.",
+    "alert": {
+      "success": "Perubahan telah disimpan!"
+    }
+  }
+}
+</i18n>
